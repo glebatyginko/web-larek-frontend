@@ -4,22 +4,59 @@ export interface IProduct {
   image: string;
   title: string;
   category: string;
-  price: number;
+  price: number | null; 
 }
 
 export interface ICustomer {
-  paymentMethod: 'card' | 'cash';
+  paymentMethod: TPayment;
   deliveryAddress: string; 
   email: string; 
   phone: string;
 }
 
 export interface IProductsData {
-  products: IProduct[];
-  preview: string | null;
+  products: TMainProductCardInfo[];
+  preview: IProduct;
+  selectProduct(item: IProduct): void;
 }
 
-type TMainProductCardInfo = Pick<IProduct, 'id' | 'image' | 'title' | 'category' | 'price'>;
-type TBasketInfo = Pick<IProduct, 'title' | 'price'>;
-type TPaymentFormInfo = Pick<ICustomer, 'paymentMethod' | 'deliveryAddress'>;
-type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
+export interface IBasket {
+  items: TBasketInfo[]; 
+  totalAmount: number | null; 
+  addItem(product: IProduct): void; 
+  removeItem(product: IProduct): void; 
+  getItemCount(): number; 
+  getTotalAmount(): number; 
+  clearBasket(): void; 
+}
+
+export interface ICheckoutForm {
+  paymentMethod: TPayment | null; 
+  deliveryAddress: string; 
+  email: string; 
+  phone: string; 
+  items: TBasketInfo[]; 
+  totalAmount: number | null; 
+  paymentAndAddressInfoValid(data: TPaymentFormInfo): boolean;
+  contactInfoValid(data: TContactFormInfo): boolean;
+  updatePaymentAndAddressInfo(
+    field: keyof TPaymentFormInfo, 
+    value: string | TPayment
+  ): void;
+  updateContactInfo(
+    field: keyof TContactFormInfo, 
+    value: string
+  ): void;
+  createOrderData(): object;
+}
+
+
+export type TPayment = 'cash' | 'card';
+
+export type TMainProductCardInfo = Pick<IProduct, 'id' | 'image' | 'title' | 'category' | 'price'>;
+
+export type TBasketInfo = Pick<IProduct, 'title' | 'price'>;
+
+export type TPaymentFormInfo = Pick<ICustomer, 'paymentMethod' | 'deliveryAddress'>;
+
+export type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
