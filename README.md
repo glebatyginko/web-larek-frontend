@@ -350,7 +350,10 @@ type ApiPostMethods = 'POST' | 'PUT' | 'DELETE';
 `contacts:submit` — сохранение данных контактов в форме;
 
 ### События работы с данными
-Эти события генерируются классами CheckoutForm и Basket:
+Эти события генерируются классами CheckoutForm, ProductCardsData и Basket:
+
+#### Каталог товаров (ProductCardsData):
+`products:updated` - обновлен список продуктов;\
 
 #### Корзина (Basket):
 `basket:updated` — обновление содержимого корзины (добавление/удаление товара);\
