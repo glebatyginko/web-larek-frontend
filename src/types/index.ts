@@ -5,38 +5,41 @@ export interface IProduct {
   title: string;
   category: string;
   price: number | null; 
+  // isInvaluable?: boolean;
 }
 
-export interface ICustomer {
-  paymentMethod: TPayment;
-  deliveryAddress: string; 
-  email: string; 
+export interface IOrderData {
+  payment: string; // TPayment
+  email: string;
   phone: string;
+  address: string;
+  total: number | null;
+  items: string[];
 }
 
 export interface IProductsData {
-  products: TMainProductCardInfo[];
+  products: IProduct[];
   preview: IProduct;
   selectProduct(item: IProduct): void;
 }
 
 export interface IBasket {
-  items: TBasketInfo[]; 
+  items: IProduct[]; 
   totalAmount: number | null; 
   addItem(product: IProduct): void; 
   removeItem(product: IProduct): void; 
   getItemCount(): number; 
-  getTotalAmount(): number; 
+  updateTotalAmount(): void;
   clearBasket(): void; 
 }
 
 export interface ICheckoutForm {
-  paymentMethod: TPayment | null; 
-  deliveryAddress: string; 
+  payment: TPayment; 
   email: string; 
   phone: string; 
-  items: TBasketInfo[]; 
-  totalAmount: number | null; 
+  address: string; 
+  total: number | null; 
+  items: string[]; 
   paymentAndAddressInfoValid(data: TPaymentFormInfo): boolean;
   contactInfoValid(data: TContactFormInfo): boolean;
   updatePaymentAndAddressInfo(
@@ -48,8 +51,13 @@ export interface ICheckoutForm {
     value: string
   ): void;
   createOrderData(): object;
+  clearForm(): void;
 }
 
+export interface IOrderResponse {
+  id: string;  
+  total: number;  
+}
 
 export type TPayment = 'cash' | 'card';
 
@@ -57,6 +65,14 @@ export type TMainProductCardInfo = Pick<IProduct, 'id' | 'image' | 'title' | 'ca
 
 export type TBasketInfo = Pick<IProduct, 'title' | 'price'>;
 
-export type TPaymentFormInfo = Pick<ICustomer, 'paymentMethod' | 'deliveryAddress'>;
+export type TPaymentFormInfo = Pick<IOrderData, 'payment' | 'address'>;
 
-export type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
+export type TContactFormInfo = Pick<IOrderData, 'email' | 'phone'>;
+
+export type ApiPostMethods = 'POST' | 'PUT' | 'DELETE';
+
+export interface IApi {
+  baseUrl: string;
+  get<T>(uri: string): Promise<T>;
+  post<T>(uri: string, data: object, method?: ApiPostMethods): Promise<T>;
+}

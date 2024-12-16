@@ -55,21 +55,23 @@ export interface IProduct {
   price: number | null; 
 }
 ```
-Данные покупателя
-
+Интерфейс, описывающий структуру данных заказа
 ```
-export interface ICustomer {
-  paymentMethod: TPayment;
-  deliveryAddress: string; 
-  email: string; 
+export interface IOrderData {
+  payment: string;
+  email: string;
   phone: string;
+  address: string;
+  total: number | null;
+  items: string[];
 }
 ```
+
 Интерфейс для модели данных товаров
 
 ```
 export interface IProductsData {
-  products: TMainProductCardInfo[];
+  products: IProduct[];
   preview: IProduct;
   selectProduct(item: IProduct): void;
 }
@@ -77,24 +79,24 @@ export interface IProductsData {
 Интерфейс для модели данных корзины
 ```
 export interface IBasket {
-  items: TBasketInfo[]; 
+  items: IProduct[]; 
   totalAmount: number | null; 
-  addItem: (product: IProduct) => void; 
-  removeItem: (product: IProduct) => void; 
-  getItemCount: () => number; 
-  getTotalAmount: () => number; 
-  clearBasket: () => void; 
+  addItem(product: IProduct): void; 
+  removeItem(product: IProduct): void; 
+  getItemCount(): number; 
+  updateTotalAmount(): void;
+  clearBasket(): void; 
 }
 ```
 Интерфейс для модели данных формы
 ```
 export interface ICheckoutForm {
-  paymentMethod: TPayment | null; 
-  deliveryAddress: string; 
+  payment: TPayment; 
   email: string; 
   phone: string; 
-  items: TBasketInfo[]; 
-  totalAmount: number | null; 
+  address: string; 
+  total: number | null; 
+  items: string[]; 
   paymentAndAddressInfoValid(data: TPaymentFormInfo): boolean;
   contactInfoValid(data: TContactFormInfo): boolean;
   updatePaymentAndAddressInfo(
@@ -106,6 +108,7 @@ export interface ICheckoutForm {
     value: string
   ): void;
   createOrderData(): object;
+  clearForm(): void;
 }
 ```
 
@@ -127,12 +130,17 @@ type TBasketInfo = Pick<IProduct, 'title' | 'price'>;
 Данные модального окно формы оплаты
 
 ```
-type TPaymentFormInfo = Pick<ICustomer, 'paymentMethod' | 'deliveryAddress'>;
+type TPaymentFormInfo = Pick<IOrderData, 'paymentMethod' | 'deliveryAddress'>;
 ```
 Данные модального окна формы контактов
 
 ```
-type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
+type TContactFormInfo = Pick<IOrderData, 'email' | 'phone'>;
+```
+
+Допустимые HTTP-методы для отправки данных: POST, PUT или DELETE
+```
+type ApiPostMethods = 'POST' | 'PUT' | 'DELETE';
 ```
 
 ## Архитектура приложения:
@@ -167,7 +175,7 @@ type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
 Класс отвечает за хранение и логику работы с данными карточек товаров.\
 Конструктор класса принимает инстант брокера событий.\
 В полях класса хранятся следующие данные:
-- `_products: TMainProductCardInfo[]` - массив объектов карточек;
+- `_products: IProduct[]` - массив объектов карточек;
 - `_preview: IProduct | null` - объект, представляющий выбранный товар;
 - `events: IEvents` - экземпляр класса `EventEmitter` для инициации событий при изменении данных;
 
@@ -180,7 +188,7 @@ type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
 Класс отвечает за работу с данными в корзине.\
 Конструктор класса принимает инстант брокера событий.\
 В полях класса хранятся следующие данные:
-- `items: TBasketInfo[]` - массив объектов типа TBasketInfo, содержащий информацию о товарах в корзине. Каждый объект включает название товара и его цену; 
+- `items: IProduct[]` - массив объектов типа TBasketInfo, содержащий информацию о товарах в корзине. Каждый объект включает название товара и его цену; 
 - `totalAmount: number | null` - хранит общую сумму всех товаров в корзине. Изначально может быть null, если корзина пуста; 
 - `events: IEvents` - экземпляр класса `EventEmitter` для инициации событий при изменении данных;
 
@@ -188,7 +196,7 @@ type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
 - `addItem(product: IProduct): void` - добавляет товар в корзину и добавляет его в массив `items`; 
 - `removeItem(product: IProduct): void` - удаляет товар из корзины. Ищет и удаляет элемент в массиве `items`, соответствующий переданному товару.; 
 - `getItemCount(): number` - возвращает количество товаров в корзине, равное длине массива items; 
-- `getTotalAmount(): number` - вычисляет и возвращает общую стоимость товаров в корзине, суммируя цены всех элементов в массиве `items`; 
+- `updateTotalAmount(): void` - вычисляет общую стоимость товаров в корзине, суммируя цены всех элементов в массиве `items`; 
 - `clearBasket(): void` - полностью очищает корзину, обнуляя массив `items` и сбрасывая totalAmount в null; 
 
 #### Класс FormData
@@ -247,8 +255,8 @@ type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
 - `events: IEvents` — брокер событий;
 
 Методы класса:
-- `setData(cardData: IProduct): void` - заполняет атрибуты элементов карточки данными;
-- `render(): HTMLElement` - рендерит содержимое карточки;
+- `render(cardData: Partial<IProduct>): HTMLElement` - заполняет атрибуты элементов карточки данными. Метод возвращает разметку карточки с установленными слушателями. Слушатели устанавливаются на все интерактивные элементы карточки и генерируют соответствующие события через экземпляр брокера событий;
+- `updateButtonState(isInBasket: boolean): void` /////
 - геттер id возвращает уникальный id карточки;
 
 #### Класс CardsContainer
@@ -316,22 +324,53 @@ type TContactFormInfo = Pick<ICustomer, 'email' | 'phone'>;
 Взаимодействие осуществляется за счет событий генерируемых с помощью брокера событий и обработчиков этих событий, описанных в `index.ts`\
 В `index.ts` сначала создаются экземпляры всех необходимых классов, а затем настраивается обработка событий.
 
-Список всех событий, которые могут генерироваться в системе:\
-*События, возникающие при взаимодействии пользователя с интерфейсом (генерируются классами, отвечающими за представление)*
-- `modal:open` - открытие модального окна;
-- `modal:close` - закрытие модального окна;
-- `modalCardFull:open` - открытие модального окна с карточкой;
-- `modalBasket:open` - открытие модального окна с корзиной;
-- `card:select` - выбор карточки для корзины;
-- `card:delete` - выбор карточки для удаления из корзины;
-- `modalOrder:open` - открытие модального окна с вариантами оплаты и адресом;
-- `payment:set` - выбор способа оплаты;
-- `modalPayment:open` - открытие модального окна с контактами и завершением оплаты;
-- `success:open` - открытие модального окна успешной оплатой;
-- `success:close` - закрытие модального окна успешной оплаты;
-- `order:input` - изменение данных в форме ввода адреса;
-- `contacts:input` - изменение данных в форме ввода контактов;
-- `order:submit` - сохранение данных адреса пользователя в модальном окне;
-- `contacts:submit` - сохранение данных контактов пользователя в модальном окне;
-- `order:validation` - событие, сообщающее о необходимости валидации формы адреса;
-- `contacts:validation` - событие, сообщающее о необходимости валидации формы контактов;
+## Список всех событий, которые могут генерироваться в системе:
+### События интерфейса (View Layer)
+Эти события генерируются при взаимодействии пользователя с интерфейсом.
+
+#### Модальные окна:
+`modal:open` — открытие модального окна;\
+`modal:close` — закрытие модального окна;\
+`modalCardFull:open` — открытие модального окна с карточкой;\
+`modalBasket:open` — открытие модального окна с корзиной;\
+`modalOrder:open` — открытие модального окна с вариантами оплаты и адресом;\
+`modalPayment:open` — открытие модального окна с контактами и завершением оплаты;\
+`success:open` — открытие модального окна с подтверждением успешной оплаты;\
+`success:close` — закрытие модального окна успешной оплаты;
+
+#### Карточки товаров:
+`card:click` - уведомляет о том, что пользователь кликнул по карточке в галерее, передавая её уникальный идентификатор для дальнейшей обработки;\
+`card:addItem` — добавление карточки товара в корзину;\
+`card:deleteItem` — удаление карточки товара из корзины;
+
+#### Формы:
+`order:input` — изменение данных адреса доставки в форме;\
+`contacts:input` — изменение данных контактов в форме;\
+`order:submit` — сохранение данных адреса в форме;\
+`contacts:submit` — сохранение данных контактов в форме;
+
+### События работы с данными
+Эти события генерируются классами CheckoutForm и Basket:
+
+#### Корзина (Basket):
+`basket:updated` — обновление содержимого корзины (добавление/удаление товара);\
+`basket:cleared` — очистка корзины после завершения заказа;\
+
+#### Данные формы заказа (CheckoutForm):
+`form:stepOneInvalid` - сигнализирует о том, что данные оплаты или адрес доставки введены некорректно и требуют исправления;\
+`form:stepTwoInvalid` - сигнализирует о том, что данные контактов введены некорректно и требуют исправления;\
+`form:paymentAddressUpdated` — обновление данных способа оплаты или адреса доставки;\
+`form:contactUpdated` — обновление данных контактов;\
+`form:orderCreated` — создание объекта заказа;\
+`form:cleared` — очистка данных формы заказа;
+
+### События валидации
+Эти события сообщают об успешной или проваленной проверке данных:
+
+`order:validation` — событие, запрашивающее валидацию формы с адресом доставки;\
+`contacts:validation` — событие, запрашивающее валидацию формы с контактами;\
+`form:valid` — форма успешно прошла проверку (генерируется CheckoutForm);\
+`form:invalid` — форма не прошла проверку (генерируется CheckoutForm);
+
+### События завершения работы
+`order:completed` — заказ успешно завершен, данные отправлены серверу, корзина очищена;
