@@ -12,7 +12,7 @@ export class Card extends Component<IProduct> {
 	protected cardCategory?: HTMLElement;
 	protected cardImage?: HTMLImageElement;
 	protected cardPrice?: HTMLElement;
-	protected addButton?: HTMLButtonElement;
+	protected actionButton?: HTMLButtonElement;
 
 	constructor(protected container: HTMLElement, events: IEvents) {
 		super(container);
@@ -22,18 +22,20 @@ export class Card extends Component<IProduct> {
 		this.cardCategory = this.container.querySelector('.card__category');
 		this.cardImage = this.container.querySelector('.card__image');
 		this.cardPrice = this.container.querySelector('.card__price');
-		this.addButton = this.container.querySelector('.card__button');
+		this.actionButton = this.container.querySelector('.card__button');
 
 		if (this.container.classList.contains('gallery__item')) {
-			this.container.addEventListener('click', () =>
-				this.events.emit('card:click', { id: this.productId })
-			);
+			this.container.addEventListener('click', () => {
+				const cardData = { id: this.productId };
+				this.events.emit('card:click', { card: cardData });
+			});
 		}
 
-		if (this.addButton) {
-			this.addButton.addEventListener('click', () =>
-				this.events.emit('card:addItem', { card: this })
-			);
+		if (this.actionButton) {
+			this.actionButton.addEventListener('click', () => {
+				const cardData = { id: this.productId };
+				this.events.emit('card:add', { card: cardData });
+			});
 		}
 	}
 
@@ -76,7 +78,7 @@ export class Card extends Component<IProduct> {
 	set price(price: number | null) {
 		if (price === null) {
 			this.cardPrice.textContent = 'Бесценно';
-			this.addButton?.setAttribute('disabled', 'true');
+			this.actionButton?.setAttribute('disabled', 'true');
 		} else {
 			let formattedPrice: string;
 
@@ -87,15 +89,15 @@ export class Card extends Component<IProduct> {
 			}
 
 			this.cardPrice.textContent = `${formattedPrice} синапсов`;
-			this.addButton?.removeAttribute('disabled');
+			this.actionButton?.removeAttribute('disabled');
 		}
 	}
 
 	updateButtonState(isInBasket: boolean): void {
 		if (isInBasket) {
-			this.addButton.textContent = 'Удалить из корзины';
+			this.actionButton.textContent = 'Удалить из корзины';
 		} else {
-			this.addButton.textContent = 'В корзину';
+			this.actionButton.textContent = 'В корзину';
 		}
 	}
 }

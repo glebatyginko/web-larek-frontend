@@ -1,10 +1,6 @@
-import {
-	IProduct,
-	IOrderData,
-	IApi,
-	IOrderResponse
-} from '../types';
+import { IProduct, IOrderData, IApi, IOrderResponse } from '../types';
 import { ApiListResponse } from './base/api';
+
 export class AppApi {
 	private _baseApi: IApi;
 
@@ -14,13 +10,13 @@ export class AppApi {
 
 	getProducts(): Promise<ApiListResponse<IProduct>> {
 		return this._baseApi
-				.get<ApiListResponse<IProduct>>('/product') 
-				.then((res: ApiListResponse<IProduct>) => res)
-				.catch((error) => {
-						console.error('Failed to fetch products:', error);
-						throw new Error('Could not fetch products. Please try again.');
-				});
-}
+			.get<ApiListResponse<IProduct>>('/product')
+			.then((res: ApiListResponse<IProduct>) => res)
+			.catch((error) => {
+				console.error('Failed to fetch products:', error);
+				throw new Error('Could not fetch products. Please try again.');
+			});
+	}
 
 	setOrderInfo(data: IOrderData): Promise<IOrderResponse> {
 		return this._baseApi

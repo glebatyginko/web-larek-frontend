@@ -6,46 +6,24 @@ import {
 	IOrderData,
 } from '../types/index';
 import { IEvents } from './base/events';
-import { isEmpty } from '../utils/utils';
 
 export class FormData implements ICheckoutForm {
 	payment: TPayment | null = null;
-  email: string;
-  phone: string;
+	email: string;
+	phone: string;
 	address: string;
 	total: number | null = null;
 	items: string[] = [];
 	protected events: IEvents;
 
-	constructor(events: IEvents, items: string[], totalAmount: number | null) {
+	constructor(events: IEvents) {
 		this.events = events;
-		this.items = items;
+	}
+
+	updateTotalAndItems(totalAmount: number | null, items: string[]): void {
 		this.total = totalAmount;
-	}
-
-	paymentAndAddressInfoValid(data: TPaymentFormInfo): boolean {
-		const { payment, address } = data;
-		const isValid =
-			!isEmpty(payment) && address.trim().length > 0;
-		if (!isValid) {
-			this.events.emit('form:stepOneInvalid', data);
-		}
-		return isValid;
-	}
-
-	contactInfoValid(data: TContactFormInfo): boolean {
-		const { email, phone } = data;
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		const phoneRegex = /^\+?\d{10,15}$/;
-		const isValid =
-			emailRegex.test(email) &&
-			phoneRegex.test(phone) &&
-			!isEmpty(email) &&
-			!isEmpty(phone);
-		if (!isValid) {
-			this.events.emit('form:stepTwoInvalid', data);
-		}
-		return isValid;
+		this.items = items;
+		this.events.emit('form:totalAndItemsUpdated', { totalAmount, items });
 	}
 
 	updatePaymentAndAddressInfo(
@@ -70,41 +48,27 @@ export class FormData implements ICheckoutForm {
 	}
 
 	createOrderData(): IOrderData {
-		const isStepOneValid = this.paymentAndAddressInfoValid({
-			payment: this.payment,
-			address: this.address,
-		});
-		const isStepTwoValid = this.contactInfoValid({
-			email: this.email,
-			phone: this.phone,
-		});
-
-		if (!isStepOneValid || !isStepTwoValid) {
-			throw new Error('Order creation failed due to invalid data.');
+		if (this.total === 0 || this.total === null) {
+			throw new Error('Order cannot be created: total cost is zero or null.');
 		}
-
-    if (this.total === 0) {
-      throw new Error('Order cannot be created: total cost is zero.');
-    }
 
 		const orderData: IOrderData = {
 			payment: this.payment,
-      email: this.email,
-      phone: this.phone,
+			email: this.email,
+			phone: this.phone,
 			address: this.address,
 			total: this.total,
 			items: this.items,
 		};
 
 		this.events.emit('form:orderCreated', orderData);
-		this.clearForm();
 		return orderData;
 	}
 
 	clearForm(): void {
 		this.payment = null;
-    this.email = '';
-    this.phone = '';
+		this.email = '';
+		this.phone = '';
 		this.address = '';
 		this.total = null;
 		this.items = [];
