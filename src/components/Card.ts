@@ -34,7 +34,7 @@ export class Card extends Component<IProduct> {
 		if (this.actionButton) {
 			this.actionButton.addEventListener('click', () => {
 				const cardData = { id: this.productId };
-				this.events.emit('card:add', { card: cardData });
+				this.events.emit('cardActionButton:click', { card: cardData });
 			});
 		}
 	}

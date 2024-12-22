@@ -6,13 +6,11 @@ import { IApi } from './types';
 import { Api } from './components/base/api';
 import { API_URL, settings } from './utils/constants';
 import { AppApi } from './components/AppApi';
-import { orderData } from './utils/tempConstans';
 import { Card } from './components/Card';
 import { CardsContainer } from './components/CardsContainer';
 import { cloneTemplate } from './utils/utils';
 import { FormData } from './components/FormData';
 import { Modal } from './components/Modal';
-import { Form } from './components/Form';
 import { Basket } from './components/Basket';
 import { Page } from './components/Page';
 import { IProduct } from './types';
@@ -21,6 +19,10 @@ import { TPaymentFormInfo } from './types';
 import { TContactFormInfo } from './types';
 import { OrderSuccess } from './components/OrderSuccess';
 
+import { PaymentForm } from './components/PaymentForm';
+import { ContactForm } from './components/ContactForm';
+import { BasketItem } from './components/BasketItem';
+
 const events = new EventEmitter();
 
 const baseApi: IApi = new Api(API_URL, settings);
@@ -28,6 +30,8 @@ const api = new AppApi(baseApi);
 
 const pageContainer: HTMLElement = document.querySelector('.page');
 
+const cardBasketTemplate: HTMLTemplateElement =
+	document.querySelector('#card-basket');
 const cardCatalogTemplate: HTMLTemplateElement =
 	document.querySelector('#card-catalog');
 const cardPreviewTemplate: HTMLTemplateElement =
@@ -45,25 +49,37 @@ const productCardsData = new ProductCardsData(events);
 const page = new Page(pageContainer, events);
 const cardsContainer = new CardsContainer(document.querySelector('.gallery'));
 const modal = new Modal(document.querySelector('#modal-container'), events);
-const orderForm = new Form(cloneTemplate(orderFormTemplate), events);
-const contactsForm = new Form(cloneTemplate(contactsFormTemplate), events);
+const orderForm = new PaymentForm(cloneTemplate(orderFormTemplate), events);
+const contactsForm = new ContactForm(
+	cloneTemplate(contactsFormTemplate),
+	events
+);
 const cardPreview = new Card(cloneTemplate(cardPreviewTemplate), events);
-const basket = new Basket(cloneTemplate(basketTemplate), basketData, events);
+const basket = new Basket(cloneTemplate(basketTemplate), events);
 
 const success = new OrderSuccess(cloneTemplate(successTemplate), events);
+
+function renderBasketItems(
+	basketData: BasketData,
+	cardBasketTemplate: HTMLTemplateElement,
+	events: EventEmitter
+): HTMLElement[] {
+	return basketData.items.map((item, index) => {
+		const basketItemElement = cloneTemplate(cardBasketTemplate);
+		const basketItem = new BasketItem(basketItemElement, events);
+
+		basketItem.id = item.id;
+		basketItem.title = item.title;
+		basketItem.price = item.price;
+		basketItem.index = index;
+
+		return basketItemElement;
+	});
+}
 
 events.onAll((event) => {
 	console.log(event.eventName, event.data);
 });
-
-api
-	.setOrderInfo(orderData)
-	.then((response) => {
-		console.log('Order Info:', response);
-	})
-	.catch((error) => {
-		console.error('Error:', error);
-	});
 
 api
 	.getProducts()
@@ -102,7 +118,7 @@ events.on('card:click', (data: { card: { id: string } }) => {
 	modal.open();
 });
 
-events.on('card:add', (data: { card: { id: string } }) => {
+events.on('cardActionButton:click', (data: { card: { id: string } }) => {
 	const { card } = data;
 	const selectedProduct = productCardsData.getProduct(card.id);
 	if (!selectedProduct) {
@@ -123,26 +139,46 @@ events.on('card:add', (data: { card: { id: string } }) => {
 
 events.on('basket:open', (page: Page) => {
 	page.locked = true;
-	const basketElement = basket.renderBasket();
+	const basketItems = renderBasketItems(basketData, cardBasketTemplate, events);
+	const basketElement = basket.renderBasket(
+		basketItems,
+		basketData.totalAmount
+	);
+
 	modal.setContent(basketElement);
 	basket.updateButtonState(basketData.items.length > 0);
 	modal.open();
 });
 
-events.on(
-	'basket:updated',
-	(data: { items: IProduct[]; totalAmount: number | null }) => {
-		const itemCount = data.items.length;
+events.on('basket:item-remove', (data: { card: { id: string } }) => {
+	const { card } = data;
+	const itemToRemove = basketData.items.find((item) => item.id === card.id);
 
-		if (itemCount > 0) {
-			basket.updateButtonState(true);
-		} else {
-			basket.updateButtonState(false);
-		}
-
-		page.setCounter(itemCount);
+	if (itemToRemove) {
+		basketData.removeItem(itemToRemove);
 	}
-);
+
+	const basketItems = renderBasketItems(basketData, cardBasketTemplate, events);
+	const basketElement = basket.renderBasket(
+		basketItems,
+		basketData.totalAmount
+	);
+
+	modal.setContent(basketElement);
+	basket.updateButtonState(basketData.items.length > 0);
+});
+
+events.on('basket:updated', (data: { items: IProduct[] }) => {
+	const itemCount = data.items.length;
+
+	if (itemCount > 0) {
+		basket.updateButtonState(true);
+	} else {
+		basket.updateButtonState(false);
+	}
+
+	page.setCounter(itemCount);
+});
 
 events.on('basket:checkout', () => {
 	const items = basketData.items.map((item) => item.id);
@@ -155,19 +191,21 @@ events.on('basket:checkout', () => {
 
 	formData.updateTotalAndItems(totalAmount, items);
 	modal.setContent(orderForm.getContainer());
-	modal.open();
 });
 
 events.on('order:submit', (data: TPaymentFormInfo) => {
 	formData.updatePaymentAndAddressInfo('payment', data.payment);
 	formData.updatePaymentAndAddressInfo('address', data.address);
 	modal.setContent(contactsForm.getContainer());
-	modal.open();
 });
 
 events.on('contacts:submit', (data: TContactFormInfo) => {
 	formData.updateContactInfo('email', data.email);
 	formData.updateContactInfo('phone', data.phone);
+	events.emit('order:createData');
+});
+
+events.on('order:createData', () => {
 	formData.createOrderData();
 });
 
@@ -176,16 +214,16 @@ events.on('form:orderCreated', (data: IOrderData) => {
 		.setOrderInfo(data)
 		.then((response) => {
 			console.log('Order successfully placed:', response);
+			basketData.clearBasket();
+			formData.clearForm();
+			const newItemCount = 0;
+			page.setCounter(newItemCount);
+			modal.setContent(success.getContainer());
+			success.updateOrderSuccess(data.total);
 		})
 		.catch((error) => {
 			console.error('Error placing order:', error);
 		});
-	basketData.clearBasket();
-	formData.clearForm();
-	const newItemCount = 0;
-	page.setCounter(newItemCount);
-	modal.setContent(success.getContainer());
-	success.updateOrderSuccess(data.total);
 });
 
 events.on('order:closeSuccess', () => {

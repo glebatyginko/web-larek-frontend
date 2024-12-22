@@ -1,6 +1,5 @@
 import { IBasket, IProduct } from '../types/index';
 import { IEvents } from './base/events';
-import { IOrderData } from '../types/index';
 
 export class BasketData implements IBasket {
 	protected _items: IProduct[] = [];
@@ -53,9 +52,5 @@ export class BasketData implements IBasket {
 	clearBasket(): void {
 		this._items = [];
 		this._totalAmount = null;
-		this.events.emit('basket:cleared', {
-			items: this._items,
-			totalAmount: this._totalAmount,
-		});
 	}
 }
